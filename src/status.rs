@@ -60,8 +60,8 @@ impl ServerStatus {
 
 	pub fn game_state_color(&self) -> Color {
 		match self.game_state {
-			GameState::Startup | GameState::SettingUp | GameState::Pregame => Color::White,
-			GameState::Playing => Color::Green,
+			GameState::Startup | GameState::SettingUp | GameState::Pregame => Color::Green,
+			GameState::Playing => Color::Default,
 			GameState::Finished => Color::Red,
 		}
 	}

@@ -165,9 +165,9 @@ fn display_status(name: &str, status: status::ServerStatus) {
 		println!(
 			"{BOLD}Shuttle Status:{RESET}  {}{:?}{RESET}",
 			if status.is_shuttle_coming() {
-				ansi().fg(Color::White).dim().finish()
+				fg(Color::Magenta)
 			} else {
-				fg(Color::Yellow)
+				ansi().fg(Color::Yellow).dim().finish()
 			},
 			shuttle.shuttle_mode
 		);
