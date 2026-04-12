@@ -4,9 +4,13 @@ pub mod topic;
 
 use crate::colors::{BOLD, Color, RESET, ansi, fg};
 use ctru::prelude::*;
-use std::net::Ipv4Addr;
+use std::{
+	net::Ipv4Addr,
+	time::{Duration, Instant},
+};
 
-pub static SERVERS: &[(&str, &str, u16)] = &[
+const UPDATE_INTERVAL: Duration = Duration::from_secs(15);
+static SERVERS: &[(&str, &str, u16)] = &[
 	("Monkestation MRP1", "104.194.9.21", 3121),
 	("Monkestation MRP2", "104.194.9.21", 3122),
 	("Oculis", "104.194.9.21", 42069),
@@ -47,6 +51,7 @@ fn main() {
 	let mut idx = 1_usize;
 	render_server_status(SERVERS[0], &top_screen, &bottom_screen);
 
+	let mut last_update = Instant::now();
 	while apt.main_loop() {
 		gfx.wait_for_vblank();
 
@@ -62,6 +67,9 @@ fn main() {
 		} else if keys.contains(KeyPad::DPAD_LEFT) {
 			add_idx(&mut idx, -1);
 			needs_update = true;
+		} else if last_update.elapsed() >= UPDATE_INTERVAL {
+			needs_update = true;
+			last_update = Instant::now();
 		}
 
 		if needs_update {
