@@ -13,7 +13,7 @@ pub static SERVERS: &[(&str, &str, u16)] = &[
 ];
 
 pub fn add_idx(idx: &mut usize, amt: i8) {
-	let new_idx = ((*idx as isize) - (amt as isize)).max(0) as usize;
+	let new_idx = ((*idx as isize) + (amt as isize)).max(0) as usize;
 	*idx = if new_idx == 0 {
 		SERVERS.len()
 	} else if new_idx > SERVERS.len() {
