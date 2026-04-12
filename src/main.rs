@@ -9,7 +9,7 @@ use std::{
 	time::{Duration, Instant},
 };
 
-const UPDATE_INTERVAL: Duration = Duration::from_secs(15);
+const UPDATE_INTERVAL: Duration = Duration::from_secs(45);
 static SERVERS: &[(&str, &str, u16)] = &[
 	("Monkestation MRP1", "104.194.9.21", 3121),
 	("Monkestation MRP2", "104.194.9.21", 3122),
