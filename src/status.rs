@@ -1,6 +1,6 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use serde_repr::Deserialize_repr;
-use serde_with::{BoolFromInt, DurationSeconds, serde_as};
+use serde_with::{BoolFromInt, serde_as};
 use std::time::Duration;
 
 fn no_map_name() -> String {
@@ -22,7 +22,7 @@ pub struct ServerStatus {
 	#[serde(default = "no_map_name")]
 	pub map_name: String,
 	pub security_level: String,
-	#[serde_as(as = "DurationSeconds")]
+	#[serde(deserialize_with = "deserialize_time_safe")]
 	pub round_duration: Duration,
 	#[serde(default, flatten)]
 	pub time_dilation: TimeDilationStats,
@@ -56,7 +56,7 @@ pub enum GameState {
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ShuttleInfo {
 	pub shuttle_mode: ShuttleMode,
-	#[serde_as(as = "DurationSeconds")]
+	#[serde(deserialize_with = "deserialize_time_safe")]
 	pub shuttle_timer: Duration,
 	#[serde(rename = "shuttle_emergency_reason")]
 	pub reason: Option<String>,
@@ -81,4 +81,12 @@ pub enum ShuttleMode {
 	Recharging,
 	#[serde(rename = "landing")]
 	PreArrival,
+}
+
+fn deserialize_time_safe<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	let seconds = i64::deserialize(deserializer)?;
+	Ok(Duration::from_secs(seconds.max(0) as u64))
 }
