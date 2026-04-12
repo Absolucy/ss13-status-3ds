@@ -1,0 +1,15 @@
+{
+	// See https://go.microsoft.com/fwlink/?LinkId=733558
+	// for the documentation about the tasks.json format
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run on 3DS",
+			"type": "shell",
+			"command": "cargo 3ds run --address 10.0.0.29 --retries 5",
+			"problemMatcher": [
+				"$rustc"
+			]
+		}
+	]
+}
