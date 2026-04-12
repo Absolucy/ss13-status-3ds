@@ -1,17 +1,15 @@
 use serde::{Deserialize, Deserializer};
 use serde_repr::Deserialize_repr;
-use serde_with::{BoolFromInt, serde_as};
 use std::time::Duration;
 
 fn no_map_name() -> String {
 	"N/A".to_owned()
 }
 
-#[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 pub struct ServerStatus {
 	pub version: String,
-	#[serde_as(as = "BoolFromInt")]
+	#[serde(deserialize_with = "deserialize_bool")]
 	pub respawn: bool,
 	pub round_id: String,
 	pub players: usize,
@@ -52,7 +50,6 @@ pub enum GameState {
 	Finished = 4,
 }
 
-#[serde_as]
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ShuttleInfo {
 	pub shuttle_mode: ShuttleMode,
@@ -89,4 +86,11 @@ where
 {
 	let seconds = i64::deserialize(deserializer)?;
 	Ok(Duration::from_secs(seconds.max(0) as u64))
+}
+
+fn deserialize_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	f32::deserialize(deserializer).map(|f| f != 0.0)
 }
