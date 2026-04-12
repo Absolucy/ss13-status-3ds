@@ -1,3 +1,4 @@
+use crate::colors::Color;
 use serde::{Deserialize, Deserializer};
 use serde_repr::Deserialize_repr;
 use std::time::Duration;
@@ -16,7 +17,8 @@ pub struct ServerStatus {
 	pub revision: String,
 	pub revision_date: String,
 	pub admins: usize,
-	pub gamestate: GameState,
+	#[serde(rename = "gamestate")]
+	pub game_state: GameState,
 	#[serde(default = "no_map_name")]
 	pub map_name: String,
 	pub security_level: String,
@@ -26,6 +28,54 @@ pub struct ServerStatus {
 	pub time_dilation: TimeDilationStats,
 	#[serde(flatten)]
 	pub shuttle_info: Option<ShuttleInfo>,
+}
+
+impl ServerStatus {
+	/// Checks to see if the emergency shuttle is currently on its way or not.
+	pub fn is_shuttle_coming(&self) -> bool {
+		matches!(
+			self.shuttle_info,
+			Some(ShuttleInfo {
+				shuttle_mode: ShuttleMode::Call
+					| ShuttleMode::Docked
+					| ShuttleMode::Igniting
+					| ShuttleMode::Escape
+					| ShuttleMode::PreArrival,
+				..
+			})
+		)
+	}
+
+	pub fn has_round_started(&self) -> bool {
+		matches!(self.game_state, GameState::Playing | GameState::Finished)
+	}
+
+	pub fn tidi_color(&self) -> Color {
+		match self.time_dilation.current {
+			..5.0 => Color::Green,
+			5.0..10.0 => Color::Yellow,
+			_ => Color::Red,
+		}
+	}
+
+	pub fn game_state_color(&self) -> Color {
+		match self.game_state {
+			GameState::Startup | GameState::SettingUp | GameState::Pregame => Color::White,
+			GameState::Playing => Color::Green,
+			GameState::Finished => Color::Red,
+		}
+	}
+
+	pub fn security_color(&self) -> Color {
+		match self.security_level.as_str() {
+			"green" => Color::Green,
+			"blue" => Color::Blue,
+			"red" => Color::Red,
+			"yellow" | "amber" => Color::Yellow,
+			"delta" | "gamma" | "epsilon" | "lambda" => Color::Magenta,
+			_ => Color::Default,
+		}
+	}
 }
 
 #[derive(Debug, Default, Deserialize, Clone, Copy)]
