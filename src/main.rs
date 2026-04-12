@@ -27,7 +27,7 @@ fn main() {
 	let _soc = Soc::new().unwrap();
 
 	let ip: Ipv4Addr = "104.194.9.21".parse().unwrap();
-	match topic::topic(ip, 3121, "?status&format=json") {
+	match topic::topic(ip, 42069, "?status&format=json") {
 		Ok(topic) => {
 			bottom_screen.select();
 			let topic = topic.trim();
