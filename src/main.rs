@@ -2,7 +2,10 @@ pub mod colors;
 pub mod status;
 pub mod topic;
 
-use crate::colors::{BOLD, Color, RESET, ansi, fg};
+use crate::{
+	colors::{BOLD, Color, RESET, ansi, fg},
+	status::ShuttleMode,
+};
 use ctru::prelude::*;
 use std::{
 	net::Ipv4Addr,
@@ -171,6 +174,13 @@ fn display_status(name: &str, status: status::ServerStatus) {
 			},
 			shuttle.shuttle_mode
 		);
+		if status.is_shuttle_coming() || shuttle.shuttle_mode == ShuttleMode::Recall {
+			println!(
+				"{BOLD}Shuttle Time:{RESET}    {}{}{RESET}",
+				fg(Color::White),
+				humantime::format_duration(shuttle.shuttle_timer)
+			);
+		}
 		if let Some(reason) = &shuttle.reason {
 			println!(
 				"{BOLD}Shuttle Reason:{RESET}  {}{:?}{RESET}",
