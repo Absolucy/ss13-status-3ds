@@ -58,9 +58,17 @@ impl ServerStatus {
 		}
 	}
 
+	pub fn game_state_name_bg(&self) -> Color {
+		match self.game_state {
+			GameState::Playing => Color::Default,
+			GameState::Finished => Color::Yellow,
+			_ => Color::Green,
+		}
+	}
+
 	pub fn game_state_color(&self) -> Color {
 		match self.game_state {
-			GameState::Startup | GameState::SettingUp | GameState::Pregame => Color::Green,
+			GameState::Startup | GameState::SettingUp | GameState::Pregame => Color::White,
 			GameState::Playing => Color::Default,
 			GameState::Finished => Color::Red,
 		}
@@ -70,6 +78,15 @@ impl ServerStatus {
 		match self.security_level.as_str() {
 			"green" => Color::Green,
 			"blue" => Color::Blue,
+			"red" => Color::Red,
+			"yellow" | "amber" => Color::Yellow,
+			"delta" | "gamma" | "epsilon" | "lambda" => Color::Magenta,
+			_ => Color::Default,
+		}
+	}
+
+	pub fn security_color_bg(&self) -> Color {
+		match self.security_level.as_str() {
 			"red" => Color::Red,
 			"yellow" | "amber" => Color::Yellow,
 			"delta" | "gamma" | "epsilon" | "lambda" => Color::Magenta,

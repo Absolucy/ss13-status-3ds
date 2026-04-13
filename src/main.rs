@@ -139,7 +139,10 @@ fn fetch_server_status(
 
 fn display_status(name: &str, status: &status::ServerStatus, time_since_fetch: Duration) {
 	println!();
-	println!("=== {BOLD}{name}{RESET} ===");
+	println!(
+		"=== {}{name}{RESET} ===",
+		ansi().bg(status.game_state_name_bg()).bold()
+	);
 	println!(
 		"{BOLD}Players:{RESET}         {}{}{RESET}",
 		fg(Color::Green),
@@ -153,7 +156,9 @@ fn display_status(name: &str, status: &status::ServerStatus, time_since_fetch: D
 	println!("{BOLD}Round ID:{RESET}        {}", status.round_id);
 	println!(
 		"{BOLD}Game State:{RESET}      {}{:?}{RESET}",
-		fg(status.game_state_color()),
+		ansi()
+			.fg(status.game_state_color())
+			.bg(status.game_state_name_bg()),
 		status.game_state
 	);
 	if status.has_round_started() {
@@ -190,14 +195,14 @@ fn display_status(name: &str, status: &status::ServerStatus, time_since_fetch: D
 		if status.is_shuttle_coming() || shuttle.shuttle_mode == ShuttleMode::Recall {
 			println!(
 				"{BOLD}Shuttle Time:{RESET}    {}{}{RESET}",
-				fg(Color::White),
-				humantime::format_duration(shuttle.shuttle_timer + time_since_fetch)
+				ansi().fg(Color::White).bg(status.security_color_bg()),
+				humantime::format_duration(shuttle.shuttle_timer - time_since_fetch)
 			);
 		}
 		if let Some(reason) = &shuttle.reason {
 			println!(
 				"{BOLD}Shuttle Reason:{RESET}  {}{:?}{RESET}",
-				fg(Color::White),
+				ansi().fg(Color::White).bg(status.security_color_bg()),
 				reason
 			);
 		}
