@@ -40,7 +40,7 @@ fn main() {
 	let mut top_screen = Console::new(gfx.top_screen.borrow_mut());
 	let bottom_screen = Console::new(gfx.bottom_screen.borrow_mut());
 
-	apt.set_app_cpu_time_limit(45)
+	apt.set_app_cpu_time_limit(30)
 		.expect("Failed to enable system core");
 
 	top_screen.set_double_buffering(true);
