@@ -4,15 +4,18 @@ pub mod topic;
 
 use crate::{
 	colors::{BOLD, Color, RESET, ansi, fg},
-	status::ShuttleMode,
+	status::{ServerStatus, ShuttleMode},
 };
-use ctru::prelude::*;
+use ctru::{
+	prelude::*,
+	services::gfx::{Flush, Swap},
+};
 use std::{
 	net::Ipv4Addr,
 	time::{Duration, Instant},
 };
 
-const UPDATE_INTERVAL: Duration = Duration::from_secs(45);
+const UPDATE_INTERVAL: Duration = Duration::from_secs(10);
 static SERVERS: &[(&str, &str, u16)] = &[
 	("Monkestation MRP1", "104.194.9.21", 3121),
 	("Monkestation MRP2", "104.194.9.21", 3122),
@@ -34,31 +37,34 @@ fn main() {
 	let mut apt = Apt::new().unwrap();
 	let mut hid = Hid::new().unwrap();
 	let gfx = Gfx::new().unwrap();
-	let top_screen = Console::new(gfx.top_screen.borrow_mut());
+	let mut top_screen = Console::new(gfx.top_screen.borrow_mut());
 	let bottom_screen = Console::new(gfx.bottom_screen.borrow_mut());
 
-	apt.set_app_cpu_time_limit(30)
+	apt.set_app_cpu_time_limit(45)
 		.expect("Failed to enable system core");
+
+	top_screen.set_double_buffering(true);
+	top_screen.swap_buffers();
 
 	// soc.redirect_to_3dslink(true, true)
 	// 	.expect("unable to redirect stdout/err to 3dslink server");
 
 	bottom_screen.select();
-	// println!("funny topic status doohickey");
-	// println!("\x1b[29;16HPress Start to exit");
 
 	// Owning a living handle to the `Soc` service is required to use network
 	// functionalities.
 	let _soc = Soc::new().unwrap();
 
 	let mut idx = 1_usize;
-	render_server_status(SERVERS[0], &top_screen, &bottom_screen);
+	top_screen.flush_buffers();
+	top_screen.swap_buffers();
 
 	let mut last_update = Instant::now();
+	let mut last_status = fetch_server_status(SERVERS[0], &bottom_screen);
 	while apt.main_loop() {
-		gfx.wait_for_vblank();
+		let mut needs_fetch = false;
 
-		let mut needs_update = false;
+		let time_since_fetch = last_update.elapsed();
 
 		hid.scan_input();
 		let keys = hid.keys_down();
@@ -66,26 +72,39 @@ fn main() {
 			break;
 		} else if keys.contains(KeyPad::DPAD_RIGHT) {
 			add_idx(&mut idx, 1);
-			needs_update = true;
+			needs_fetch = true;
 		} else if keys.contains(KeyPad::DPAD_LEFT) {
 			add_idx(&mut idx, -1);
-			needs_update = true;
+			needs_fetch = true;
 		} else if last_update.elapsed() >= UPDATE_INTERVAL {
-			needs_update = true;
+			needs_fetch = true;
+		}
+
+		if needs_fetch {
+			last_status = fetch_server_status(SERVERS[idx - 1], &bottom_screen);
 			last_update = Instant::now();
 		}
 
-		if needs_update {
-			render_server_status(SERVERS[idx - 1], &top_screen, &bottom_screen);
+		top_screen.select();
+		top_screen.clear();
+		if let Some(status) = &last_status {
+			display_status(
+				SERVERS[idx - 1].0,
+				status,
+				Duration::from_secs(time_since_fetch.as_secs()),
+			);
 		}
+		top_screen.flush_buffers();
+		top_screen.swap_buffers();
+
+		gfx.wait_for_vblank();
 	}
 }
 
-fn render_server_status(
-	(name, ip, port): (&str, &str, u16),
-	top_screen: &Console,
+fn fetch_server_status(
+	(_name, ip, port): (&str, &str, u16),
 	bottom_screen: &Console,
-) {
+) -> Option<ServerStatus> {
 	let ip: Ipv4Addr = ip.parse().unwrap();
 	bottom_screen.select();
 	bottom_screen.clear();
@@ -93,8 +112,6 @@ fn render_server_status(
 		Ok(topic) => match serde_json::from_str::<status::ServerStatus>(topic.trim()) {
 			Ok(status) => status,
 			Err(err) => {
-				top_screen.select();
-				top_screen.clear();
 				bottom_screen.select();
 				bottom_screen.clear();
 				println!("{topic}\n");
@@ -103,12 +120,10 @@ fn render_server_status(
 					fg(Color::Red),
 					ansi().fg(Color::White).bg(Color::Red)
 				);
-				return;
+				return None;
 			}
 		},
 		Err(err) => {
-			top_screen.select();
-			top_screen.clear();
 			bottom_screen.select();
 			bottom_screen.clear();
 			println!(
@@ -116,15 +131,13 @@ fn render_server_status(
 				fg(Color::Red),
 				ansi().fg(Color::White).bg(Color::Red)
 			);
-			return;
+			return None;
 		}
 	};
-	top_screen.select();
-	top_screen.clear();
-	display_status(name, status);
+	Some(status)
 }
 
-fn display_status(name: &str, status: status::ServerStatus) {
+fn display_status(name: &str, status: &status::ServerStatus, time_since_fetch: Duration) {
 	println!();
 	println!("=== {BOLD}{name}{RESET} ===");
 	println!(
@@ -146,7 +159,7 @@ fn display_status(name: &str, status: status::ServerStatus) {
 	if status.has_round_started() {
 		println!(
 			"{BOLD}Round Duration:{RESET}  {}",
-			humantime::format_duration(status.round_duration)
+			humantime::format_duration(status.round_duration + time_since_fetch)
 		);
 	}
 	println!(
@@ -178,7 +191,7 @@ fn display_status(name: &str, status: status::ServerStatus) {
 			println!(
 				"{BOLD}Shuttle Time:{RESET}    {}{}{RESET}",
 				fg(Color::White),
-				humantime::format_duration(shuttle.shuttle_timer)
+				humantime::format_duration(shuttle.shuttle_timer + time_since_fetch)
 			);
 		}
 		if let Some(reason) = &shuttle.reason {
