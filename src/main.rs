@@ -164,7 +164,7 @@ fn display_status(name: &str, status: &status::ServerStatus, time_since_fetch: D
 	if status.has_round_started() {
 		println!(
 			"{BOLD}Round Duration:{RESET}  {}",
-			humantime::format_duration(status.round_duration + time_since_fetch)
+			humantime::format_duration(status.round_duration.saturating_add(time_since_fetch))
 		);
 	}
 	println!(
@@ -196,7 +196,7 @@ fn display_status(name: &str, status: &status::ServerStatus, time_since_fetch: D
 			println!(
 				"{BOLD}Shuttle Time:{RESET}    {}{}{RESET}",
 				ansi().fg(Color::White).bg(status.security_color_bg()),
-				humantime::format_duration(shuttle.shuttle_timer - time_since_fetch)
+				humantime::format_duration(shuttle.shuttle_timer.saturating_sub(time_since_fetch))
 			);
 		}
 		if let Some(reason) = &shuttle.reason {
