@@ -40,7 +40,7 @@ fn main() {
 	let mut top_screen = Console::new(gfx.top_screen.borrow_mut());
 	let bottom_screen = Console::new(gfx.bottom_screen.borrow_mut());
 
-	unsafe { ctru_sys::osSetSpeedupEnable(true) };
+	// unsafe { ctru_sys::osSetSpeedupEnable(true) };
 	apt.set_app_cpu_time_limit(30)
 		.expect("Failed to enable system core");
 
