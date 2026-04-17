@@ -1,9 +1,11 @@
 pub mod colors;
+pub mod config;
 pub mod status;
 pub mod topic;
 
 use crate::{
 	colors::{BOLD, Color, RESET, ansi, fg},
+	config::Server,
 	status::{ServerStatus, ShuttleMode},
 };
 use ctru::{
@@ -16,17 +18,15 @@ use std::{
 };
 
 const UPDATE_INTERVAL: Duration = Duration::from_secs(10);
-static SERVERS: &[(&str, &str, u16)] = &[
-	("Monkestation MRP1", "104.194.9.21", 3121),
-	("Monkestation MRP2", "104.194.9.21", 3122),
-	("Oculis", "104.194.9.21", 42069),
-];
 
-pub fn add_idx(idx: &mut usize, amt: i8) {
+pub fn add_idx<T>(idx: &mut usize, amt: i8, servers: &[T]) {
+	if servers.len() < 2 {
+		return;
+	}
 	let new_idx = ((*idx as isize) + (amt as isize)).max(0) as usize;
 	*idx = if new_idx == 0 {
-		SERVERS.len()
-	} else if new_idx > SERVERS.len() {
+		servers.len()
+	} else if new_idx > servers.len() {
 		1
 	} else {
 		new_idx
@@ -43,6 +43,16 @@ fn main() {
 	// unsafe { ctru_sys::osSetSpeedupEnable(true) };
 	apt.set_app_cpu_time_limit(30)
 		.expect("Failed to enable system core");
+
+	let servers = match config::load_config() {
+		Ok(servers) => servers,
+		Err(err) => {
+			eprintln!("Failed to load config: {err:?}");
+			eprintln!("Loading default config...");
+			std::thread::sleep(Duration::from_secs(2));
+			config::default_servers()
+		}
+	};
 
 	top_screen.set_double_buffering(true);
 	top_screen.swap_buffers();
@@ -61,7 +71,7 @@ fn main() {
 	top_screen.swap_buffers();
 
 	let mut last_update = Instant::now();
-	let mut last_status = fetch_server_status(SERVERS[0], &bottom_screen);
+	let mut last_status = fetch_server_status(&servers[0], &bottom_screen);
 	while apt.main_loop() {
 		let mut needs_fetch = false;
 
@@ -72,17 +82,17 @@ fn main() {
 		if keys.intersects(KeyPad::START | KeyPad::Y) {
 			break;
 		} else if keys.contains(KeyPad::DPAD_RIGHT) {
-			add_idx(&mut idx, 1);
+			add_idx(&mut idx, 1, &servers);
 			needs_fetch = true;
 		} else if keys.contains(KeyPad::DPAD_LEFT) {
-			add_idx(&mut idx, -1);
+			add_idx(&mut idx, -1, &servers);
 			needs_fetch = true;
 		} else if last_update.elapsed() >= UPDATE_INTERVAL {
 			needs_fetch = true;
 		}
 
 		if needs_fetch {
-			last_status = fetch_server_status(SERVERS[idx - 1], &bottom_screen);
+			last_status = fetch_server_status(&servers[idx - 1], &bottom_screen);
 			last_update = Instant::now();
 		}
 
@@ -90,7 +100,7 @@ fn main() {
 		top_screen.clear();
 		if let Some(status) = &last_status {
 			display_status(
-				SERVERS[idx - 1].0,
+				&servers[idx - 1].name,
 				status,
 				Duration::from_secs(time_since_fetch.as_secs()),
 			);
@@ -102,14 +112,12 @@ fn main() {
 	}
 }
 
-fn fetch_server_status(
-	(_name, ip, port): (&str, &str, u16),
-	bottom_screen: &Console,
-) -> Option<ServerStatus> {
+fn fetch_server_status(server: &Server, bottom_screen: &Console) -> Option<ServerStatus> {
+	let Server { ip, port, .. } = server;
 	let ip: Ipv4Addr = ip.parse().unwrap();
 	bottom_screen.select();
 	bottom_screen.clear();
-	let status = match topic::topic(ip, port, "?status&format=json") {
+	let status = match topic::topic(ip, *port, "?status&format=json") {
 		Ok(topic) => match serde_json::from_str::<status::ServerStatus>(topic.trim()) {
 			Ok(status) => status,
 			Err(err) => {

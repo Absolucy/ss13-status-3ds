@@ -1,0 +1,14 @@
+[[servers]]
+name = "Monkestation MRP1"
+ip = "104.194.9.21"
+port = 3121
+
+[[servers]]
+name = "Monkestation MRP2"
+ip = "104.194.9.21"
+port = 3122
+
+[[servers]]
+name = "Oculis"
+ip = "104.194.9.21"
+port = 42069
