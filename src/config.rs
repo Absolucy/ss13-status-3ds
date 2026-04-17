@@ -31,7 +31,7 @@ pub fn load_config() -> Result<Vec<Server>> {
 		"/config/ss13-status.toml",
 		"/3ds/ss13.toml",
 		"/3ds/ss13-status.toml",
-		"3ds/ss13-status/config.toml",
+		"/3ds/ss13-status/config.toml",
 	];
 
 	let mut config_path: Option<&str> = None;
