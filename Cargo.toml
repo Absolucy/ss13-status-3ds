@@ -16,6 +16,10 @@ serde_repr = "0.1"
 toml = { version = "1", features = ["serde"] }
 
 [package.metadata.cargo-3ds]
+name = "SS13 Status Viewer"
+description = "Thingymajig to view the status of SS13 servers... on your 3DS!"
+authors = ["Lucy <lucy@absolucy.moe>"]
+icon_path = "logo.png"
 romfs_dir = "romfs"
 
 [profile.release]
