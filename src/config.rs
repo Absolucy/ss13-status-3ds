@@ -1,9 +1,20 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
+fn default_status_query() -> StatusQuery {
+	StatusQuery::Normal
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
 	servers: Vec<Server>,
+}
+
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum StatusQuery {
+	Normal,
+	Secondary,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -11,6 +22,8 @@ pub struct Server {
 	pub name: String,
 	pub ip: String,
 	pub port: u16,
+	#[serde(default = "default_status_query")]
+	pub status_query: StatusQuery,
 }
 
 impl Server {
@@ -19,6 +32,7 @@ impl Server {
 			name: name.to_owned(),
 			ip: ip.to_owned(),
 			port,
+			status_query: StatusQuery::Normal,
 		}
 	}
 }

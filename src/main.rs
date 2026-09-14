@@ -5,12 +5,15 @@ pub mod topic;
 
 use crate::{
 	colors::{BOLD, Color, RESET, ansi, fg},
-	config::Server,
-	status::{ServerStatus, ShuttleMode},
+	config::{Server, StatusQuery},
+	status::{SecondaryStatusResponse, ServerStatus, ShuttleMode},
 };
 use ctru::{
 	prelude::*,
-	services::gfx::{Flush, Swap},
+	services::{
+		ac::{Ac, NetworkStatus},
+		gfx::{Flush, Swap},
+	},
 };
 use std::{
 	net::Ipv4Addr,
@@ -37,6 +40,7 @@ fn main() {
 	let mut apt = Apt::new().unwrap();
 	let mut hid = Hid::new().unwrap();
 	let gfx = Gfx::new().unwrap();
+	let ac = Ac::new().unwrap();
 	let mut top_screen = Console::new(gfx.top_screen.borrow_mut());
 	let bottom_screen = Console::new(gfx.bottom_screen.borrow_mut());
 
@@ -71,6 +75,7 @@ fn main() {
 	top_screen.swap_buffers();
 
 	let mut last_update = Instant::now();
+	let mut was_connected = matches!(ac.wifi_status(), Ok(NetworkStatus::WANConnected));
 	let mut last_status = fetch_server_status(&servers[0], &bottom_screen);
 	while apt.main_loop() {
 		let mut needs_fetch = false;
@@ -90,6 +95,23 @@ fn main() {
 		} else if last_update.elapsed() >= UPDATE_INTERVAL {
 			needs_fetch = true;
 		}
+
+		let is_connected = matches!(ac.wifi_status(), Ok(NetworkStatus::WANConnected));
+		if !is_connected {
+			if was_connected {
+				bottom_screen.select();
+				bottom_screen.clear();
+				println!("reconnecting to Wi-Fi...");
+			}
+			was_connected = false;
+			gfx.wait_for_vblank();
+			continue;
+		}
+		if !was_connected {
+			// just reconnected, fetch right away instead of waiting for the next tick
+			needs_fetch = true;
+		}
+		was_connected = true;
 
 		if needs_fetch {
 			last_status = fetch_server_status(&servers[idx - 1], &bottom_screen);
@@ -113,25 +135,45 @@ fn main() {
 }
 
 fn fetch_server_status(server: &Server, bottom_screen: &Console) -> Option<ServerStatus> {
-	let Server { ip, port, .. } = server;
+	let Server {
+		ip,
+		port,
+		status_query,
+		..
+	} = server;
+	let status_query = *status_query;
 	let ip: Ipv4Addr = ip.parse().unwrap();
 	bottom_screen.select();
 	bottom_screen.clear();
-	let status = match topic::topic(ip, *port, "?status&format=json") {
-		Ok(topic) => match serde_json::from_str::<status::ServerStatus>(topic.trim()) {
-			Ok(status) => status,
-			Err(err) => {
-				bottom_screen.select();
-				bottom_screen.clear();
-				println!("{topic}\n");
-				println!(
-					"{}{BOLD}decode error:{RESET} {}{err:?}{RESET}",
-					fg(Color::Red),
-					ansi().fg(Color::White).bg(Color::Red)
-				);
-				return None;
+	let query = match status_query {
+		StatusQuery::Normal => "?status&format=json",
+		StatusQuery::Secondary => {
+			r#"{"query": "status", "source": "absolucy doohickey", "auth": "anonymous"}"#
+		}
+	};
+	let status = match topic::topic(ip, *port, query) {
+		Ok(topic) => {
+			let topic = topic.trim();
+			let decoded = match status_query {
+				StatusQuery::Normal => serde_json::from_str::<ServerStatus>(topic),
+				StatusQuery::Secondary => serde_json::from_str::<SecondaryStatusResponse>(topic)
+					.map(|response| response.data),
+			};
+			match decoded {
+				Ok(status) => status,
+				Err(err) => {
+					bottom_screen.select();
+					bottom_screen.clear();
+					println!("{topic}\n");
+					println!(
+						"{}{BOLD}decode error:{RESET} {}{err:?}{RESET}",
+						fg(Color::Red),
+						ansi().fg(Color::White).bg(Color::Red)
+					);
+					return None;
+				}
 			}
-		},
+		}
 		Err(err) => {
 			bottom_screen.select();
 			bottom_screen.clear();

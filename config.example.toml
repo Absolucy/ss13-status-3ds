@@ -12,3 +12,6 @@ port = 3122
 name = "Oculis"
 ip = "104.194.9.21"
 port = 42069
+# Optional. Defaults to "normal"; use "secondary" for servers that expect the
+# JSON status query and return { "data": ServerStatus }.
+# status_query = "secondary"

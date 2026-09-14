@@ -1,7 +1,7 @@
 use crate::colors::Color;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de};
 use serde_repr::Deserialize_repr;
-use std::time::Duration;
+use std::{fmt, time::Duration};
 
 fn no_map_name() -> String {
 	"N/A".to_owned()
@@ -12,6 +12,7 @@ pub struct ServerStatus {
 	pub version: String,
 	#[serde(deserialize_with = "deserialize_bool")]
 	pub respawn: bool,
+	#[serde(deserialize_with = "deserialize_round_id")]
 	pub round_id: String,
 	pub players: usize,
 	pub revision: String,
@@ -28,6 +29,11 @@ pub struct ServerStatus {
 	pub time_dilation: TimeDilationStats,
 	#[serde(flatten)]
 	pub shuttle_info: Option<ShuttleInfo>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SecondaryStatusResponse {
+	pub data: ServerStatus,
 }
 
 impl ServerStatus {
@@ -160,4 +166,49 @@ where
 	D: Deserializer<'de>,
 {
 	f32::deserialize(deserializer).map(|f| f != 0.0)
+}
+
+fn deserialize_round_id<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	struct RoundIdVisitor;
+
+	impl de::Visitor<'_> for RoundIdVisitor {
+		type Value = String;
+
+		fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+			formatter.write_str("a string or integer round ID")
+		}
+
+		fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+		where
+			E: de::Error,
+		{
+			Ok(value.to_owned())
+		}
+
+		fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+		where
+			E: de::Error,
+		{
+			Ok(value)
+		}
+
+		fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+		where
+			E: de::Error,
+		{
+			Ok(value.to_string())
+		}
+
+		fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+		where
+			E: de::Error,
+		{
+			Ok(value.to_string())
+		}
+	}
+
+	deserializer.deserialize_any(RoundIdVisitor)
 }
